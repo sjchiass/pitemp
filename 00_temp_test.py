@@ -10,12 +10,13 @@ import argparse
 import os
 
 parser = argparse.ArgumentParser(description="Stress test and log temperature")
+parser.add_argument("file_prefix", type=str, help="name of file to output")
 parser.add_argument("--duration", type=int, help='total duration in minutes', default=60)
 parser.add_argument("--max_threads", type=int, help='max number of threads', default=4)
 parser.add_argument("-a", "--case_under", action="store_true", help="the bottom of the case is on")
 parser.add_argument("-b", "--case_frame", action="store_true", help="the case frame is on")
 parser.add_argument("-c", "--case_cable", action="store_true", help="the cable-side panel is on")
-parser.add_argument("-d", "--case_gpio", action="store_true", help="the gpio-side panel is one")
+parser.add_argument("-d", "--case_gpio", action="store_true", help="the gpio-side panel is on")
 parser.add_argument("-m", "--top_solid", action="store_true", help="the top panel is on and solid")
 parser.add_argument("-n", "--top_hole", action="store_true", help="the top panel is on and has a fan hole")
 parser.add_argument("-o", "--top_intake", action="store_true", help="there is a fan on the case pulling air in")
@@ -79,7 +80,7 @@ active_dummies = [y for x, y in zip(dummies, dummy_labels) if x]
 
 # From the dummies build a filename
 dummy_string = "".join([str(int(x)) for x in dummies])
-file_path = f"./pistress_{dummy_string}.csv"
+file_path = f"./{args.file_prefix}_{dummy_string}.csv"
 
 if os.path.isfile(file_path):
     print(f"[Startup] The file {file_path} already exists. It will be appended to.")
@@ -87,8 +88,8 @@ else:
     print(f"[Startup] The file {file_path} is a new one. It will be created.")
 
 print(f"[Startup] Tests will be run with {', '.join(active_dummies)}")
-print(f"[Startup] If this is not what you intended, Ctrl+C in the next 5 seconds.")
-time.sleep(5)
+print(f"[Startup] If this is not what you intended, Ctrl+C in the next 10 seconds.")
+time.sleep(10)
 print("[Startup] Starting script ...")
 
 # If the file already exists, append to it

@@ -6,18 +6,46 @@ This project uses Python to analyze Raspberry Pi 3B CPU temperatures. Since the 
 
 ## Table of contents
 
+* [Project overview](#Project-overview)
+  * [Experiment 1: random usage](#Experiment-1:-random-usage)
+  * [Experiment 2: min-max cycling](#Experiment-2:-min-max-cycling)
 * [Breaking down the modular case](#Breaking-down-the-modular-case)
-* Project overview
-* Experiment 1: simulated usage
-  * Physical setup
-  * Data collection script
-  * What the data represents
-  * Breaking down the data
-* Experiment 2: heating-up and cooling-down cycles
-  * Motivation
-  * Physical setup
-  * Data collection script
-  * Modelling temperature
+* [Experiment 1: random usage](#Experiment-1:-random-usage)
+  * [Physical setup](#Physical-setup)
+  * [Data collection script](#Data-collection-script)
+  * [What the data represents](#What-the-data-represents)
+  * [Breaking down the data](#Breaking-down-the-data)
+* [Experiment 2: min-max cycling](#Experiment-2:-min-max-cycling)
+  * [Motivation](#Motivation)
+  * [Physical setup](#Physical-setup)
+  * [Data collection script](#Data-collection-script)
+  * [Modelling temperature](#Modelling-temperature)
+
+## Project overview
+
+I've split this project into two. The first half uses data from random usage, which might be closer to what day-to-day usage of the Pi is. The second half tries to address shortcomings of first approach, and uses data on how long the Pi takes to heat up to maximum temperature and then cool down to minimum temperature.
+
+### Experiment 1: random usage
+
+The data collection script randomly selects a usage level (0%, 25%, 50%, 75%, 100%) and a duration (3s to 21s) to run a test. Every second the usage level and the temperature is logged to a CSV file. I've tested 17 different combinations of the modular Raspberry Pi case for 1 hour each.
+
+My analysis has found that closed cases run hotter. Having a fan cools the CPU a lot, with intake fans blowing directly onto the chip having the best effect.
+
+The data collection process has some issues.
+
+  1. The closed cases build up heat over 30-60 minutes (they're not stationary series)
+  2. The usage is (mostly) discrete over 5 usage levels, making the data less rich
+  3. There are dependencies between the case panels, so some panels have a lot more data in the 17 tests
+
+### Experiment 2: min-max cycling
+
+The second experiment addresses the issues of the previous experiment. The data collection script now lets the CPU cool to a minimum (0% usage; no new minimum temperature in 30s) and then lets it heat up to a maximum (100% usage; no new maximum temperature in 30s). It does this cooldown/warmup cycling for 2 hours. There were 5 tests, one for each type of case top panel.
+
+  1. By reaching minimum and maximum temperatures, the data should be more stationary
+  2. There are only two usage levels: 0% and 100%
+  3. The 5 test cases are independant: they're mutually-exclusive top case panels
+
+I modelled the data using an AR(1) linear model. The model showed again that the fans were best for reducing CPU temperatures. Thanks to the different data collection, the model should be giving more accurate estimates of heat dissipation.
 
 ## Breaking down the modular case
 
@@ -67,66 +95,38 @@ Finally, the Pi-FAN (5V; 0.10A) and heatsinks can be found online for fairly che
 
 ![The pi-fan with some assorted heatsinks](./images/fan_and_heatsinks.jpg)
 
-## Looking at the temperature range
+## Experiment 1: random usage
 
-The `04_minmax_test.py` temperature logging script tests for temperature minimum and maximums by having the case heat up (100% usage) and then cool down (~0% usage). When a temperature is maintained for 30 seconds, it's logged.
+### Physical setup
 
-We can see below that all cases stay below the rpi's soft throttle of 60C, when at rest. When the rpi is at 100% usage, the cases without fans get very close to the rpi's maximum temperature limit. (At temperatures like these the CPU will slow down a lot to prevent damage, so you're also getting performance impact.)
+### Data collection script
 
-![Minimum and maximums by case top, bar chart](./images/minmax_temps.png)
+[./00_temp_test.py](./00_temp_test.py)
 
-## Estimating heat dissipation of case tops
+[./01_data.ipynb](./01_data.ipynb)
 
-By running a very basic time series model, we can get a basic idea of how much heat the tops get out of the case. A closed case will still eliminate heat through the plastic, and an open one will let hot air rise up and out.
+![Random usage data collection flowchart](./images/data_1_flowchart.png)
 
-![What percentage degrees celsius are eliminated by case type, bar chart](./images/heat_dissipation.png)
+### What the data represents
 
-## Full model
+[./02_descriptive.ipynb](./02_descriptive.ipynb)
 
-Below is the output of the model running on the most extensive dataset, with 17 case configurations tested.
+### Breaking down the data
 
-The `coef` column gives the estimated effect of each case part.
+[./03_linear_models.ipynb](./03_linear_models.ipynb)
 
-These tests were all run with the raspberry pi plugged into a monitor with an HDMI cable. Interestingly, it seems that this made the plastic gpio panel dissipate some heat. The USB and HDMI plugs are warm to the touch while the rpi is running, so I think it helped a bit to have that plastic close by (not that they're touching; the case is fairly loose).
+## Experiment 2: min-max cycling
 
-The intake fan had the most impact on the case temperatures, followed by the exhaust fan. All tests have been done with some cheap aluminium heatsinks on the two rpi ICs. Having cool air blowing directly on that SoC heatsink is certainly going to help a lot with temperatures!
+### Motivation
 
-```
-                            OLS Regression Results                            
-==============================================================================
-Dep. Variable:                   temp   R-squared:                       0.879
-Model:                            OLS   Adj. R-squared:                  0.879
-Method:                 Least Squares   F-statistic:                 4.951e+04
-Date:                Wed, 05 Aug 2020   Prob (F-statistic):               0.00
-Time:                        08:09:24   Log-Likelihood:            -1.6432e+05
-No. Observations:               61058   AIC:                         3.287e+05
-Df Residuals:                   61048   BIC:                         3.288e+05
-Df Model:                           9                                         
-Covariance Type:            nonrobust                                         
-===============================================================================
-                  coef    std err          t      P>|t|      [0.025      0.975]
--------------------------------------------------------------------------------
-Intercept      65.8071      0.063   1049.222      0.000      65.684      65.930
-usage           0.0615      0.000    149.541      0.000       0.061       0.062
-case_under      0.6286      0.084      7.473      0.000       0.464       0.793
-case_frame      0.7365      0.075      9.846      0.000       0.590       0.883
-case_cable     -0.9833      0.036    -27.190      0.000      -1.054      -0.912
-case_gpio       2.4387      0.033     72.836      0.000       2.373       2.504
-top_solid       4.3315      0.055     79.262      0.000       4.224       4.439
-top_holed       2.1087      0.056     37.944      0.000       2.000       2.218
-top_intake    -19.5402      0.060   -323.340      0.000     -19.659     -19.422
-top_exhaust   -13.6484      0.056   -245.543      0.000     -13.757     -13.539
-==============================================================================
-Omnibus:                    19120.932   Durbin-Watson:                   0.065
-Prob(Omnibus):                  0.000   Jarque-Bera (JB):            86514.542
-Skew:                          -1.472   Prob(JB):                         0.00
-Kurtosis:                       8.034   Cond. No.                         477.
-==============================================================================
+### Physical setup
 
-Warnings:
-[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
-```
+### Data collection script
 
-Unfortunately, I've only been stressing the CPU by thread number. If I could stress the CPU with more finely-tuned usage levels, we could see if there's a curve to the data. (I wonder if there's any practical value to this, but I think it's fun regardless.)
+[./04_minmax_test.py](./04_minmax_test.py)
 
-![Comparing temps, line plot](./images/temp_comparison.png)
+![Cooldown and warmup data collection flowchart](./images/data_2_flowchart.png)
+
+### Modelling temperature
+
+[./05_time_series.ipynb](./05_time_series.ipynb)

@@ -36,7 +36,7 @@ The data collection process has some issues.
 
   1. The closed cases build up heat over 30-60 minutes (they're not stationary series)
   2. The usage is (mostly) discrete over 5 usage levels, making the data less rich
-  3. There are dependencies between the case panels, so some panels have a lot more data in the 17 tests
+  3. There are dependencies between the case parts, so some parts have a lot more data in the 17 tests (case frame is ~90% active)
 
 ### Experiment 2: min-max cycling
 
@@ -147,6 +147,10 @@ The descriptive analysis of the data is available in this iPython notebook.
 
   * The iPython notebook looking at the data: [./02_descriptive.ipynb](./02_descriptive.ipynb)
 
+Looking at all 17 time series, we can see that heat does build up significantly in certain case configurations. Some cases reach nearly 80C in 10-20 minutes and stay there.
+
+![Heat build-up in some cases](./images/exp1_time_series.png)
+
 Despite trying 17 different case configurations, the data is still imbalanced. This is unavoidable. You can't install the side panels without having the case bottom and frame present; therefore, the majority of runs will have the bottom and frame present.
 
 ![Imbalanced dataset](./images/exp1_dummy_counts.png)
@@ -234,20 +238,101 @@ We can use the model to predict what temperatures would be if only one case comp
 
 ### Motivation
 
+The second experiment tries to get a more accurate temperature model by addressing some of the issues of the first experiment's data.
+
+Issues with the first experiment's data:
+
+  1. The closed cases build up heat over 30-60 minutes (they're not stationary series)
+  2. The usage is (mostly) discrete over 5 usage levels, making the data less rich
+  3. There are dependencies between the case parts, so some parts have a lot more data in the 17 tests (`case_frame` is ~90% active)
+
+The second experiment addresses these issue.
+
+  1. Let cases cool down and warm up completely so that the data is more stationary
+  2. Abandon different usage levels, only use 0% (cooldown) and 100% (warmup)
+  3. Have only 5 test cases, one for each top panel type
+
+The second experiment's estimates should be closer to reality.
+
 ### Physical setup
+
+The Raspberry Pi case is placed on wooden sewing rings to isolate it better from the desk. The Pi is not connected by HDMI to a monitor and instead communicates to the controlling computer by remote terminal.
+
+![The Pi case on some wooden rings](./images/20200804_141854.jpg)
 
 ### Data collection script
 
-[./04_minmax_test.py](./04_minmax_test.py)
+The data collection script now operates in cooldown and warmup cycles. It waits 30 seconds to declare a temperature a minimum (cooldown) or a maximum (warmup). Each run lasts 2 hours.
+
+  * The modified data collection script: [./04_minmax_test.py](./04_minmax_test.py)
+
+Here is a flowchart representation of the data collection script.
 
 ![Cooldown and warmup data collection flowchart](./images/data_2_flowchart.png)
 
 ### Modelling temperature
 
-[./05_time_series.ipynb](./05_time_series.ipynb)
+  * The iPython notebook analysis of the data: [./05_time_series.ipynb](./05_time_series.ipynb)
+
+Compared to the first experiment, the data in the second experiment is more stable. Even though some cases build up heat, once they've built it up they settle in regular series. The `top_solid` case takes 10 minutes to get hot and then settles into a stable oscillating series.
 
 ![Data is now more stable](./images/exp2_stable_time_series.png)
 
+Experiment 2 collects minimum and maximum temperatures, which are interesting on their own. If we graph these minimums and maximums, we can see that it's pretty hard to keep the Raspberry Pi cool. Even with fans the Pi case reaches the soft throttle limit (60C) when working at 100%.
+
 ![How cases compare](./images/exp2_minmax_by_top.png)
+
+The model is an AR(1) process that describes current temperatures as a function of previous temperatures and usage levels. This is an autoregressive model, meaning that it tries predicting values from the same (previous) values.
+
+  * Read more about autoregressive models: <https://en.wikipedia.org/wiki/Autoregressive_model>
+
+The model used here is 
+
+```
+temp ~ usage_1           + temp_1
+     + temp_1:top_solid  + temp_1:top_holed
+     + temp_1:top_intake + temp_1:top_exhaust
+```
+
+The `temp_1:top_solid` notation signifies that the lagged temperature `temp_1` is multiplied by the 0/1 variable `top_solid`. This is known as an interaction.
+
+*What does the model mean?* The current temperature is a function of previous temperature and CPU usage. If `temp_1` has a coefficient of `0.97`, 97% of the temperature is "retained" for the current temperature. If an intake fan is present and its coefficient is `-0.01`, then only 96% of the heat will be retained the next second.
+
+The model below fits the data very well, according ot the R^2 statistic of 0.998. This means that the model is a reasonably good way of representing the temperature dataset from the dataset.
+
+```
+                            OLS Regression Results                            
+==============================================================================
+Dep. Variable:                   temp   R-squared:                       0.998
+Model:                            OLS   Adj. R-squared:                  0.998
+Method:                 Least Squares   F-statistic:                 3.750e+06
+Date:                Mon, 07 Sep 2020   Prob (F-statistic):               0.00
+Time:                        15:47:01   Log-Likelihood:                -25908.
+No. Observations:               36857   AIC:                         5.183e+04
+Df Residuals:                   36850   BIC:                         5.189e+04
+Df Model:                           6                                         
+Covariance Type:            nonrobust                                         
+======================================================================================
+                         coef    std err          t      P>|t|      [0.025      0.975]
+--------------------------------------------------------------------------------------
+Intercept              1.4558      0.027     54.911      0.000       1.404       1.508
+usage_1                0.0061   9.31e-05     65.615      0.000       0.006       0.006
+temp_1                 0.9738      0.000   2139.769      0.000       0.973       0.975
+temp_1:top_solid       0.0010      0.000      8.466      0.000       0.001       0.001
+temp_1:top_holed       0.0007      0.000      6.133      0.000       0.000       0.001
+temp_1:top_intake     -0.0090      0.000    -43.924      0.000      -0.009      -0.009
+temp_1:top_exhaust    -0.0066      0.000    -38.012      0.000      -0.007      -0.006
+==============================================================================
+Omnibus:                     4315.430   Durbin-Watson:                   2.618
+Prob(Omnibus):                  0.000   Jarque-Bera (JB):            39040.757
+Skew:                           0.208   Prob(JB):                         0.00
+Kurtosis:                       8.025   Cond. No.                         954.
+==============================================================================
+
+Notes:
+[1] Standard Errors assume that the covariance matrix of the errors is correctly specified.
+```
+
+In order to interpret the coefficients properly, we can add each interaction-dummy coefficient to the `temp_1` coefficient. This gives us an idea of how much heat (in degrees C) is eliminated each second by each case configuration (assuming 0% CPU usage).
 
 ![Visualizing the AR(!) coefficients](./images/exp2_percentage_dissipation.png)

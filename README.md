@@ -15,6 +15,7 @@ This project uses Python to analyze Raspberry Pi 3B CPU temperatures. Since the 
   * [Data collection script](#Data-collection-script)
   * [What the data represents](#What-the-data-represents)
   * [Breaking down the data](#Breaking-down-the-data)
+  * [Basic modelling](#Basic-modelling)
 * [Experiment 2: min-max cycling](#Experiment-2-min-max-cycling)
   * [Motivation](#Motivation)
   * [Physical setup](#Physical-setup)
@@ -115,6 +116,14 @@ Finally, the Pi-FAN (5V; 0.10A) and heatsinks can be found online for fairly che
 
 [./03_linear_models.ipynb](./03_linear_models.ipynb)
 
+![Imbalanced dataset](./images/exp1_dummy_counts.png)
+
+![Distibution of temperatures](./images/exp1_temperature_dist.png)
+
+### Basic modelling
+
+![Predicted means](./images/exp1_predicted_means.png)
+
 ## Experiment 2: min-max cycling
 
 ### Motivation
@@ -130,3 +139,9 @@ Finally, the Pi-FAN (5V; 0.10A) and heatsinks can be found online for fairly che
 ### Modelling temperature
 
 [./05_time_series.ipynb](./05_time_series.ipynb)
+
+![Data is now more stable](./images/exp2_stable_time_series.png)
+
+![How cases compare](./images/exp2_minmax_by_top.png)
+
+![Visualizing the AR(!) coefficients](./images/exp2_percentage_dissipation.png)

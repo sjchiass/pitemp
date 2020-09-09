@@ -18,8 +18,8 @@ This project uses Python to analyze Raspberry Pi 3B CPU temperatures. Since the 
   * [Basic modelling](#Basic-modelling)
 * [Experiment 2: min-max cycling](#Experiment-2-min-max-cycling)
   * [Motivation](#Motivation)
-  * [Physical setup](#Physical-setup)
-  * [Data collection script](#Data-collection-script)
+  * [Physical setup mkII](#Physical-setup-mkii)
+  * [Data collection script mkII](#Data-collection-script-mkii)
   * [Modelling temperature](#Modelling-temperature)
 
 ## Project overview
@@ -254,13 +254,13 @@ The second experiment addresses these issue.
 
 The second experiment's estimates should be closer to reality.
 
-### Physical setup
+### Physical setup mkII
 
 The Raspberry Pi case is placed on wooden sewing rings to isolate it better from the desk. The Pi is not connected by HDMI to a monitor and instead communicates to the controlling computer by remote terminal.
 
 ![The Pi case on some wooden rings](./images/20200804_141854.jpg)
 
-### Data collection script
+### Data collection script mkII
 
 The data collection script now operates in cooldown and warmup cycles. It waits 30 seconds to declare a temperature a minimum (cooldown) or a maximum (warmup). Each run lasts 2 hours.
 
